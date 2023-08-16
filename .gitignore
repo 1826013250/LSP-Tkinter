@@ -1,0 +1,7 @@
+*/__pycache__/
+venv/
+config.json
+out/
+.idea/
+*/.DS_Store
+.git/
