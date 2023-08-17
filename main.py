@@ -1,43 +1,20 @@
 import tkinter as tk
 import os
-import inspect
-import ctypes
 from tkinter.messagebox import showinfo
-from tkinter.filedialog import askdirectory
 from PIL import Image, ImageTk
-from queue import Queue
+from queue import Queue, Empty
 from threading import Thread, Lock
-from io import BytesIO
-from time import sleep
 
-from get_image import getpic
-from settings import load_settings, save_settings
-
-
-def _async_raise(tid, exctype):
-    """raises the exception, performs cleanup if needed"""
-    tid = ctypes.c_long(tid)
-    if not inspect.isclass(exctype):
-        exctype = type(exctype)
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
-    if res == 0:
-        raise ValueError("invalid thread id")
-    elif res != 1:
-        # """if it returns a number greater than one, you're in trouble,
-        # and you should call it again with exc=NULL to revert the effect"""
-        ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-        raise SystemError("PyThreadState_SetAsyncExc failed")
-
-
-def stop_thread(thread):
-    _async_raise(thread.ident, SystemExit)
+from modules.get_image import get_meta
+from modules.settings import load_settings, SettingsWindow
+from modules.stop_thread import stop_thread
 
 
 class MyApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.progress_queue = Queue()
-        self.version = "0.0.0"
+        self.version = "1.0"
         self.settings = load_settings(self)
         self.img_list = []
         self.lock = Lock()
@@ -48,14 +25,14 @@ class MyApp(tk.Tk):
         self.create_widgets()
         self.create_menubar()
         self.after(1000, self.pic_resize)
-        self.after(10, self.auto_distribute)
         self.after(1, self.delete_messages)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def create_widgets(self):
         self.image_label = tk.Label(self)
         self.image_label.pack()
-
+        self.image_label.bind("<Button- >", lambda *args: self.pic_info())
+        self.bind("<Key- >", lambda *args: self.pic_info())
         self.button_frame = tk.Frame(self)
         self.button_frame.pack()
         self.next_button = tk.Button(self.button_frame, text="Get!(Enter)", command=self.get_pic)
@@ -74,7 +51,7 @@ class MyApp(tk.Tk):
         menu.add_cascade(label="编辑", menu=menueditor)
 
         menusettings = tk.Menu(self)
-        menusettings.add_command(label="打开设置", command=lambda: Settings(self.settings, self.winfo_x(), self.winfo_y()))
+        menusettings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
         menusettings.add_command(label="重置设置", command=...)
         menu.add_cascade(label="设置", menu=menusettings)
 
@@ -100,23 +77,68 @@ class MyApp(tk.Tk):
             exit(0)
 
     def get_pic(self):
+        self.after(10, self.auto_distribute)
         if not self.pic_wait:
             try:
-                self.img_list.pop(0)
+                self.img_list.pop(0)[1].close()
+                self.imgfp.close()
             except IndexError:
                 pass
             self.after(1, self.pic_set)
 
     def save_img(self):
         if self.img_status:
-            i = 0
-            with open(os.path.join(self.settings.save_path.get(), f"{self.meta['pid']}.jpg"), 'wb') as f:
-                f.write(self.rimg)
+            with open(os.path.join(self.settings.save_path.get(), f"{self.meta['pid']}.{self.meta['ext']}"), 'wb') as f:
+                self.imgfp.seek(0)
+                f.write(self.imgfp.read())
                 showinfo("Success!",
                          "文件已保存!路径为：\n"
                          f"{os.path.join(self.settings.save_path.get(), '%s.jpg' % self.meta['pid'])}")
         else:
             showinfo("Oops!", "当前没有图片!")
+
+    def pic_info(self):
+        if self.img_status:
+            pic_info_tp = tk.Toplevel(self)
+            pic_info_tp.geometry("500x350+%d+%d" % (self.winfo_x()+20, self.winfo_y()+20))
+            pic_info_tp.title("当前图片信息")
+            frame = tk.Frame(pic_info_tp)
+            frame.pack()
+            text = tk.Text(frame, relief=tk.SUNKEN)
+            scroll = tk.Scrollbar(frame, command=text.yview)
+            scroll.pack(side="right", fill="y")
+            text.insert("0.0", f"""作品名称:
+{self.meta["title"]}
+
+作品pid:
+{self.meta["pid"]}
+
+作者:
+{self.meta["author"]}
+
+作者uid:
+{self.meta["uid"]}
+
+AI绘图:
+{["未知", "不是", "是"][self.meta["aiType"]]}
+
+R18:
+{["不是", "是"][int(self.meta["r18"])]}
+
+作品标签:
+%s
+
+原图链接:
+{self.meta["urls"]["original"]}
+""" % "\n".join(self.meta["tags"]))
+            text.config(state="disabled")
+            text.pack(side="left", fill="both")
+            text.config(yscrollcommand=scroll.set)
+            btn = tk.Button(pic_info_tp, text="确定(Enter)", command=pic_info_tp.destroy)
+            pic_info_tp.bind("<Return>", lambda *args: pic_info_tp.destroy())
+            pic_info_tp.bind("<Key- >", lambda *args: pic_info_tp.destroy())
+            pic_info_tp.bind("<FocusOut>", lambda *args: pic_info_tp.destroy())
+            btn.pack()
 
     def pic_resize(self):
         if self.img_status:
@@ -128,8 +150,8 @@ class MyApp(tk.Tk):
         if self.img_list:
             img = self.img_list[0]
             self.meta = img[0]
-            self.rimg = img[1]
-            self.simg = Image.open(BytesIO(self.rimg))
+            self.imgfp = img[1]
+            self.simg = Image.open(self.imgfp)
             w, h = self.simg.width, self.simg.height
             times = max(w/self.winfo_width(), h/self.winfo_height())
             self.simg.thumbnail((int(w/times), int(h/times-40)))
@@ -139,31 +161,45 @@ class MyApp(tk.Tk):
             self.pic_wait = False
         else:
             self.img_status = False
-            if not self.progress_queue.empty():
-                self.image_label.config(text=self.progress_queue.get(), image="")
+            try:
+                while True:
+                    self.image_label.config(text=self.progress_queue.get_nowait(), image="")
+            except Empty:
+                pass
             self.after(1, self.pic_set)
 
     def auto_distribute(self):
         if len(self.img_list) + self.thread_started <= self.settings.preload.get():
             content = {
                 "r18": self.settings.r18.get(),
-                "tag": self.settings.tag.get(),
+                "tag": self.settings.tags.get(),
+                "uid": list(map(int, self.settings.uid.get())),
                 "excludeAI": self.settings.exclude_ai.get()
             }
             thread = Thread(target=self.thread_work, args=[content, self.thread_started])
             thread.start()
             self.thread_list.append(thread)
             self.thread_started += 1
-        self.after(100, self.auto_distribute)
+            self.after(10, self.auto_distribute)
 
     def thread_work(self, content, thread_id):
         print("Thread #%d Run!" % thread_id)
+        self.lock.acquire()
         self.progress_queue.put("线程#%d正在获取图片地址..." % thread_id)
-        r = getpic(self.progress_queue, thread_id, content)
-        if r == "error":
+        self.lock.release()
+        r = get_meta(self.progress_queue, thread_id, content)
+        if r == "error_pic":
+            self.lock.acquire()
             self.progress_queue.put("线程#%d获取图片失败！" % thread_id)
+            self.lock.release()
+        elif r == "error_meta":
+            self.lock.acquire()
+            self.progress_queue.put("线程#%d获取链接失败！" % thread_id)
+            self.lock.release()
         elif r == "not_found":
-            self.progress_queue.put("线程#%d图片未找到,自动重新获取..." % thread_id)
+            self.lock.acquire()
+            self.progress_queue.put("线程#%d图片未找到!" % thread_id)
+            self.lock.release()
         elif type(r) == tuple:
             self.lock.acquire()
             self.img_list.append(r)
@@ -173,93 +209,22 @@ class MyApp(tk.Tk):
         self.thread_started -= 1
 
     def delete_messages(self):
-        if not self.pic_wait and not self.progress_queue.empty():
-            self.progress_queue.get()
+        if not self.pic_wait:
+            while True:
+                try:
+                    self.progress_queue.get_nowait()
+                except Empty:
+                    break
         dellist = []
         for i in range(len(self.thread_list)):
             if not self.thread_list[i].is_alive():
                 dellist.append(i)
-        for i in dellist:
+        for i in reversed(dellist):
             try:
                 self.thread_list.pop(i)
             except IndexError:
                 pass
         self.after(1, self.delete_messages)
-
-
-class Settings(tk.Toplevel):
-    def __init__(self, settings, x, y):
-        super().__init__()
-        self.settings = settings
-        self.create_widgets()
-        self.wm_title("设置")
-        self.wm_geometry("300x200+%d+%d" % (x, y))
-        self.wm_resizable(False, False)
-
-    def create_widgets(self):
-        r18frame = tk.Frame(self)
-        r18frame.pack(fill="x")
-        r18label = tk.Label(r18frame, text="R18图片状态")
-        r18label.pack(side="left")
-        r18rand = tk.Radiobutton(r18frame, text="随机", value=2, variable=self.settings.r18)
-        r18rand.pack(side="right")
-        r18enable = tk.Radiobutton(r18frame, text="仅R18", value=1, variable=self.settings.r18)
-        r18enable.pack(side="right")
-        r18disable = tk.Radiobutton(r18frame, text="关", value=0, variable=self.settings.r18)
-        r18disable.pack(side="right")
-
-        excaiframe = tk.Frame(self)
-        excaiframe.pack(fill="x")
-        excailabel = tk.Label(excaiframe, text="排除AI作品")
-        excailabel.pack(side="left")
-        excaicheck = tk.Checkbutton(excaiframe, variable=self.settings.exclude_ai)
-        excaicheck.pack(side="right")
-
-        prednframe = tk.Frame(self)
-        prednframe.pack(fill="x")
-        prednlabel = tk.Label(prednframe, text="预下载当前图片")
-        prednlabel.pack(side="left")
-        predncheck = tk.Checkbutton(prednframe, variable=self.settings.pre_download)
-        predncheck.pack(side="right")
-
-        def preload_validate():
-            if preload_tempvar.get().isdigit():
-                self.settings.preload.set(int(preload_tempvar.get()))
-                preload_tempvar.set(self.settings.preload.get())
-            elif not preload_tempvar.get():
-                self.settings.preload.set(0)
-                preload_tempvar.set("0")
-            else:
-                preload_tempvar.set(self.settings.preload.get())
-            preloadentry.after(1, preload_validate)
-        preload_tempvar = tk.StringVar(self, self.settings.preload.get())
-        preloadframe = tk.Frame(self)
-        preloadframe.pack(fill="x")
-        preloadlabel = tk.Label(preloadframe, text="预加载图片数量")
-        preloadlabel.pack(side="left")
-        preloadentry = tk.Entry(preloadframe, textvariable=preload_tempvar, width=2)
-        preloadentry.after(1, preload_validate)
-        preloadentry.pack(side="right")
-
-        pathframe = tk.Frame(self)
-        pathframe.pack(fill="x")
-        pathlabel = tk.Label(pathframe, text="图片保存路径")
-        pathlabel.pack(side="left")
-        pathbtn = tk.Button(pathframe, text="选择...", command=lambda: self.settings.save_path.set(askdirectory()))
-        pathbtn.pack(side="right")
-        pathentry = tk.Entry(pathframe, textvariable=self.settings.save_path)
-        pathentry.pack(side="right")
-
-        buttonframe = tk.Frame(self)
-        buttonframe.pack(fill="x")
-        cancelbtn = tk.Button(buttonframe, text="取消", command=self.destroy)
-        cancelbtn.pack(side="left")
-        savebtn = tk.Button(buttonframe, text="确定", command=self.save_settings)
-        savebtn.pack(side="right")
-
-    def save_settings(self):
-        save_settings(self.settings)
-        self.destroy()
 
 
 if __name__ == "__main__":

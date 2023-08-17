@@ -4,19 +4,19 @@ from queue import Queue
 from io import BytesIO
 
 
-def getpic(queue: Queue, thread_id, content=None):
+def get_meta(queue: Queue, thread_id, content=None):
     url = "https://api.lolicon.app/setu/v2"
     try:
         r = post(url, json=content, timeout=5).json()
         print("Get Meta Finished!")
     except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout):
-        return "error"
+        return "error_meta"
     else:
-        if not r.get("error"):
+        if not r.get("error") and r.get("data"):
             meta = r["data"][0]
             try:
                 print("Thread #%d Getting Pictures" % thread_id)
-                resp = get(meta["urls"]["original"], stream=True)
+                resp = get(meta["urls"]["original"], stream=True, timeout=5)
                 total = int(resp.headers.get('content-length', 1024*1024))
                 print(meta["urls"]["original"])
                 print(total)
@@ -26,13 +26,15 @@ def getpic(queue: Queue, thread_id, content=None):
                     size += fp.write(data)
                     queue.put("线程#%d正在下载:%d%%" % (thread_id, 100*(size/total)))
                 fp.seek(0)
-                pic = fp.read()
-                fp.close()
             except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout):
-                return "error"
+                return "error_pic"
             else:
                 if resp.status_code == 404:
                     return "not_found"
-                return meta, pic
+                return meta, fp
         else:
-            return "error"
+            return "not_found"
+
+
+def get_pic():
+    ...
