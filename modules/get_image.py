@@ -16,7 +16,7 @@ def get_meta(queue: Queue, thread_id, content=None):
             meta = r["data"][0]
             try:
                 print("Thread #%d Getting Pictures" % thread_id)
-                resp = get(meta["urls"]["original"], stream=True, timeout=5)
+                resp = get(meta["urls"]["original"], stream=True, timeout=10)
                 total = int(resp.headers.get('content-length', 1024*1024))
                 print(meta["urls"]["original"])
                 print(total)

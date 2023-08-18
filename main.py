@@ -45,15 +45,15 @@ class MyApp(tk.Tk):
     def create_menubar(self):
         menu = tk.Menu(self)
 
-        menueditor = tk.Menu(self)
-        menueditor.add_command(label="保存", command=self.save_img)
-        menueditor.add_command(label="获取", command=self.get_pic)
-        menu.add_cascade(label="编辑", menu=menueditor)
+        menu_editor = tk.Menu(self)
+        menu_editor.add_command(label="保存", command=self.save_img)
+        menu_editor.add_command(label="获取", command=self.get_pic)
+        menu.add_cascade(label="编辑", menu=menu_editor)
 
-        menusettings = tk.Menu(self)
-        menusettings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
-        menusettings.add_command(label="重置设置", command=...)
-        menu.add_cascade(label="设置", menu=menusettings)
+        menu_settings = tk.Menu(self)
+        menu_settings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
+        menu_settings.add_command(label="重置设置", command=...)
+        menu.add_cascade(label="设置", menu=menu_settings)
 
         self.config(menu=menu)
 
@@ -100,11 +100,10 @@ class MyApp(tk.Tk):
     def pic_info(self):
         if self.img_status:
             pic_info_tp = tk.Toplevel(self)
-            pic_info_tp.geometry("500x350+%d+%d" % (self.winfo_x()+20, self.winfo_y()+20))
             pic_info_tp.title("当前图片信息")
-            frame = tk.Frame(pic_info_tp)
+            frame = tk.Frame(pic_info_tp, width=100, height=300)
             frame.pack()
-            text = tk.Text(frame, relief=tk.SUNKEN)
+            text = tk.Text(frame, relief=tk.SUNKEN, width=30)
             scroll = tk.Scrollbar(frame, command=text.yview)
             scroll.pack(side="right", fill="y")
             text.insert("0.0", f"""作品名称:
@@ -122,15 +121,18 @@ class MyApp(tk.Tk):
 AI绘图:
 {["未知", "不是", "是"][self.meta["aiType"]]}
 
-R18:
+API分类R18:
 {["不是", "是"][int(self.meta["r18"])]}
+
+图片Tag R-18:
+%s
 
 作品标签:
 %s
 
 原图链接:
 {self.meta["urls"]["original"]}
-""" % "\n".join(self.meta["tags"]))
+""" % ("是" if "R-18" in self.meta["tags"] else "不是", "\n".join(self.meta["tags"])))
             text.config(state="disabled")
             text.pack(side="left", fill="both")
             text.config(yscrollcommand=scroll.set)
@@ -139,6 +141,10 @@ R18:
             pic_info_tp.bind("<Key- >", lambda *args: pic_info_tp.destroy())
             pic_info_tp.bind("<FocusOut>", lambda *args: pic_info_tp.destroy())
             btn.pack()
+            pic_info_tp.after(5, lambda: pic_info_tp.geometry("%dx%d+%d+%d" % (pic_info_tp.winfo_width(),
+                                                                               pic_info_tp.winfo_height(),
+                                                                               self.winfo_x() + 20,
+                                                                               self.winfo_y() + 20)))
 
     def pic_resize(self):
         if self.img_status:
@@ -215,11 +221,11 @@ R18:
                     self.progress_queue.get_nowait()
                 except Empty:
                     break
-        dellist = []
+        del_list = []
         for i in range(len(self.thread_list)):
             if not self.thread_list[i].is_alive():
-                dellist.append(i)
-        for i in reversed(dellist):
+                del_list.append(i)
+        for i in reversed(del_list):
             try:
                 self.thread_list.pop(i)
             except IndexError:
@@ -230,5 +236,5 @@ R18:
 if __name__ == "__main__":
     app = MyApp()
     app.title(f"LSP Viewer v{app.version}")
-    app.geometry("300x400")
+    app.geometry("300x400+%d+%d" % (app.winfo_screenwidth() // 3, app.winfo_screenheight() // 3))
     app.mainloop()
