@@ -16,7 +16,9 @@ class Settings:
             exclude_ai=False,
             uid=None,
             tags=None,
-            save_path="./out/"
+            save_path="./out/",
+            proxy="",
+            custom_proxy=""
     ):
         self.r18 = IntVar(master, r18)
         self.preload = IntVar(master, preload)
@@ -24,6 +26,8 @@ class Settings:
         self.uid = Variable(value=[]) if not uid else Variable(value=uid)
         self.tags = Variable(value=[]) if not tags else Variable(value=tags)
         self.save_path = StringVar(master, save_path)
+        self.proxy = StringVar(master, proxy)
+        self.custom_proxy = StringVar(master, custom_proxy)
 
 
 def dict2class(adict: dict, master):
@@ -34,7 +38,9 @@ def dict2class(adict: dict, master):
         exclude_ai=adict['exclude_ai'],
         uid=adict['uid'],
         tags=adict['tags'],
-        save_path=adict['save_path']
+        save_path=adict['save_path'],
+        proxy=adict['proxy'],
+        custom_proxy=adict['custom_proxy']
     )
 
 
@@ -45,7 +51,9 @@ def class2dict(aclass: Settings):
         "exclude_ai": aclass.exclude_ai.get(),
         "uid": aclass.uid.get(),
         "tags": aclass.tags.get(),
-        "save_path": aclass.save_path.get()
+        "save_path": aclass.save_path.get(),
+        "proxy": aclass.proxy.get(),
+        "custom_proxy": aclass.custom_proxy.get()
     }
 
 
@@ -56,7 +64,7 @@ def load_settings(master):
             settings = json.load(f, object_hook=lambda adict: dict2class(adict, master))
             f.close()
             return settings
-        except json.JSONDecodeError or KeyError:
+        except (json.JSONDecodeError, KeyError):
             f.close()
             settings = Settings(master)
             save_settings(settings)
@@ -75,13 +83,17 @@ def save_settings(settings):
 
 class SettingsWindow(tk.Toplevel):
     def __init__(self, master):
-        super().__init__()
+        super().__init__(master)
         self.settings = master.settings
-        self.master = master
+        self.proxy_temp_var = tk.IntVar(value=0 if not self.settings.proxy.get() else (
+            1 if self.settings.proxy.get() == "pixiv.yuki.sh" else 2))
         self.create_widgets()
         self.wm_title("设置")
-        self.wm_geometry("300x330+%d+%d" % (master.winfo_x()+20, master.winfo_y()+20))
         self.wm_resizable(False, False)
+        self.after(20, lambda *args: self.wm_geometry("%dx%d+%d+%d" % (self.winfo_width(),
+                                                                       self.winfo_height(),
+                                                                       master.winfo_x()+20,
+                                                                       master.winfo_y()+20)))
 
     def create_widgets(self):
         r18_frame = tk.Frame(self)
@@ -136,7 +148,6 @@ class SettingsWindow(tk.Toplevel):
 
         def add_tag_list(text="", first=tk.END):
             tp = tk.Toplevel(self)
-            tp.geometry("300x80+%d+%d" % (self.winfo_x()+20, self.winfo_y()+20))
             tp.title("设置标签")
             tp.label = tk.Label(tp, text="请输入要检索的标签，用\"|\"标记其他可选项")
             tp.label.pack()
@@ -156,6 +167,18 @@ class SettingsWindow(tk.Toplevel):
             ))
             tp.btn_cancel.pack(side="left")
             tp.btn_confirm.pack(side="right")
+            tp.bind("<Return>", lambda *args: (
+                tags_list.insert(first, tp.entry.get()),
+                tp.destroy()
+            ) if first == tk.END else (
+                tags_list.delete(first),
+                tags_list.insert(first, tp.entry.get()),
+                tp.destroy()
+            ))
+            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
+                                                                    tp.winfo_height(),
+                                                                    self.winfo_x()+20,
+                                                                    self.winfo_y()+20)))
 
         def tag_del_selected():
             try:
@@ -193,7 +216,6 @@ class SettingsWindow(tk.Toplevel):
 
         def add_uid_list(text="", first=tk.END):
             tp = tk.Toplevel(self)
-            tp.geometry("200x80+%d+%d" % (self.winfo_x()+20, self.winfo_y()+20))
             tp.title("设置作者uid")
             tp.label = tk.Label(tp, text="请输入作者的uid")
             tp.label.pack()
@@ -215,6 +237,20 @@ class SettingsWindow(tk.Toplevel):
             ))
             tp.btn_cancel.pack(side="left")
             tp.btn_confirm.pack(side="right")
+            tp.bind("<Return>", lambda *args: (
+                uid_list.insert(first, tp.entry.get()),
+                tp.destroy()
+            ) if first == tk.END and tp.entry.get().isdigit() else (
+                uid_list.delete(first),
+                uid_list.insert(first, tp.entry.get()),
+                tp.destroy()
+            ) if tp.entry.get().isdigit() else (
+                showwarning("Warning", "作者uid中只能存在数字！")
+            ))
+            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
+                                                                    tp.winfo_height(),
+                                                                    self.winfo_x() + 20,
+                                                                    self.winfo_y() + 20)))
 
         tk.Label(self).pack()
 
@@ -252,12 +288,63 @@ class SettingsWindow(tk.Toplevel):
         uid_scroll.config(command=uid_list.yview)
         uid_list.pack(side="right")
 
-        button_frame = tk.Frame(self)
-        button_frame.pack()
-        cancel_btn = tk.Button(button_frame, text="取消", command=self.destroy)
-        cancel_btn.pack(side="left")
-        save_btn = tk.Button(button_frame, text="确定", command=self.save_settings)
-        save_btn.pack(side="right")
+        def set_proxy(text=""):
+            tp = tk.Toplevel(self)
+            tp.title("设置Pixiv反代理服务网址")
+            tp.label = tk.Label(tp, text="请输入反代理网址(只保留主域名)")
+            tp.label.pack()
+            tp.entry = tk.Entry(tp)
+            tp.entry.insert(tk.END, text)
+            tp.entry.pack(fill="x")
+            tp.btn_frame = tk.Frame(tp)
+            tp.btn_frame.pack()
+            tp.btn_cancel = tk.Button(tp.btn_frame, text="取消", command=tp.destroy)
+            tp.btn_confirm = tk.Button(tp.btn_frame, text="确定", command=lambda: (
+                self.settings.custom_proxy.set(tp.entry.get()),
+                tp.destroy()
+            ))
+            tp.btn_cancel.pack(side="left")
+            tp.btn_confirm.pack(side="right")
+            tp.bind("<Return>", lambda *args: (
+                self.settings.custom_proxy.set(tp.entry.get()),
+                tp.destroy()
+            ))
+            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
+                                                                    tp.winfo_height(),
+                                                                    self.winfo_x() + 20,
+                                                                    self.winfo_y() + 20)))
+        proxy_frame = tk.Label(self)
+        proxy_frame.pack(fill="x")
+        proxy_label = tk.Label(proxy_frame, text="Pixiv反代理")
+        proxy_label.pack(side="left")
+        proxy_custom_btn = tk.Button(proxy_frame,
+                                     text="自定",
+                                     command=lambda: set_proxy(self.settings.custom_proxy.get()))
+        proxy_custom_btn.pack(side="right")
+        proxy_custom = tk.Radiobutton(proxy_frame,
+                                      value=2,
+                                      variable=self.proxy_temp_var,
+                                      command=lambda: self.settings.proxy.set(self.settings.custom_proxy.get()))
+        proxy_custom.pack(side="right")
+        proxy_fallback = tk.Radiobutton(proxy_frame,
+                                        text="备用",
+                                        value=1,
+                                        variable=self.proxy_temp_var,
+                                        command=lambda: self.settings.proxy.set("pixiv.yuki.sh"))
+        proxy_fallback.pack(side="right")
+        proxy_main = tk.Radiobutton(proxy_frame,
+                                    text="主要",
+                                    value=0,
+                                    variable=self.proxy_temp_var,
+                                    command=lambda: self.settings.proxy.set(""))
+        proxy_main.pack(side="right")
+
+        final_button_frame = tk.Frame(self)
+        final_button_frame.pack()
+        final_cancel_btn = tk.Button(final_button_frame, text="取消", command=self.destroy)
+        final_cancel_btn.pack(side="left")
+        final_save_btn = tk.Button(final_button_frame, text="确定", command=self.save_settings)
+        final_save_btn.pack(side="right")
 
     def save_settings(self):
         save_settings(self.settings)
@@ -265,3 +352,8 @@ class SettingsWindow(tk.Toplevel):
         for i in self.master.thread_list:
             stop_thread(i)
         self.destroy()
+
+
+class ToplevelInput(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master)

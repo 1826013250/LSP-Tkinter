@@ -180,7 +180,8 @@ API分类R18:
                 "r18": self.settings.r18.get(),
                 "tag": self.settings.tags.get(),
                 "uid": list(map(int, self.settings.uid.get())),
-                "excludeAI": self.settings.exclude_ai.get()
+                "excludeAI": self.settings.exclude_ai.get(),
+                "proxy": self.settings.proxy.get()
             }
             thread = Thread(target=self.thread_work, args=[content, self.thread_started])
             thread.start()
@@ -196,7 +197,7 @@ API分类R18:
         r = get_meta(self.progress_queue, thread_id, content)
         if r == "error_pic":
             self.lock.acquire()
-            self.progress_queue.put("线程#%d获取图片失败！" % thread_id)
+            self.progress_queue.put("线程#%d获取图片失败！请尝试更换Pixiv反代理" % thread_id)
             self.lock.release()
         elif r == "error_meta":
             self.lock.acquire()

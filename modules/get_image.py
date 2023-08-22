@@ -9,7 +9,7 @@ def get_meta(queue: Queue, thread_id, content=None):
     try:
         r = post(url, json=content, timeout=5).json()
         print("Get Meta Finished!")
-    except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout):
+    except (requests.exceptions.SSLError, requests.ReadTimeout, requests.ConnectionError):
         return "error_meta"
     else:
         if not r.get("error") and r.get("data"):
@@ -26,11 +26,13 @@ def get_meta(queue: Queue, thread_id, content=None):
                     size += fp.write(data)
                     queue.put("线程#%d正在下载:%d%%" % (thread_id, 100*(size/total)))
                 fp.seek(0)
-            except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout):
+            except (requests.exceptions.SSLError, requests.ReadTimeout, requests.ConnectionError):
                 return "error_pic"
             else:
                 if resp.status_code == 404:
                     return "not_found"
+                elif resp.status_code not in (404, 200):
+                    return "error_pic"
                 return meta, fp
         else:
             return "not_found"
