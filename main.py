@@ -27,6 +27,7 @@ class MyApp(tk.Tk):
         self.after(1000, self.pic_resize)
         self.after(1, self.delete_messages)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        os.makedirs(self.settings.save_path.get(), exist_ok=True)
 
     def create_widgets(self):
         self.image_label = tk.Label(self)

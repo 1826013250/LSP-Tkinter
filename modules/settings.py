@@ -94,10 +94,7 @@ class SettingsWindow(tk.Toplevel):
         self.wm_geometry("+%d+%d" % (master.winfo_x()+20, master.winfo_y()+20))
         self.focus_set()
         self.wm_attributes("-topmost", 1)
-        self.protocol("WM_DESTROY_WINDOW", self.cancel_settings)
-
-    def create_folders(self):
-        os.makedirs(self.settings.save_path, exist_ok=True)
+        self.protocol("WM_DELETE_WINDOW", self.cancel_settings)
 
     def create_widgets(self):
         r18_frame = tk.Frame(self)
@@ -142,9 +139,11 @@ class SettingsWindow(tk.Toplevel):
         preload_entry.pack(side="right")
 
         def set_dictionary():
+            self.wm_attributes("-topmost", 0)
             path = askdirectory()
             if path:
                 self.settings.save_path.set(path)
+            self.wm_attributes("-topmost", 1)
         path_frame = tk.Frame(self)
         path_frame.pack(fill="x")
         path_label = tk.Label(path_frame, text="图片保存路径")
