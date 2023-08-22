@@ -52,10 +52,17 @@ class MyApp(tk.Tk):
 
         menu_settings = tk.Menu(self)
         menu_settings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
-        menu_settings.add_command(label="重置设置", command=...)
+        menu_settings.add_command(label="重置设置", command=self.reset_config)
         menu.add_cascade(label="设置", menu=menu_settings)
 
         self.config(menu=menu)
+
+    def reset_config(self):
+        try:
+            os.remove("config.json")
+        except FileNotFoundError:
+            pass
+        self.settings = load_settings(self)
 
     def on_close(self):
         self.tp = tk.Toplevel(self)
