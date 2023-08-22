@@ -47,14 +47,14 @@ class MyApp(tk.Tk):
         self.save_button.pack(side="left")
 
     def create_menubar(self):
-        menu = tk.Menu(self, tearoff=False)
+        menu = tk.Menu(self)
 
-        menu_editor = tk.Menu(self)
+        menu_editor = tk.Menu(self, tearoff=False)
         menu_editor.add_command(label="保存", command=self.save_img)
         menu_editor.add_command(label="获取", command=self.get_pic)
         menu.add_cascade(label="编辑", menu=menu_editor)
 
-        menu_settings = tk.Menu(self)
+        menu_settings = tk.Menu(self, tearoff=False)
         menu_settings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
         menu_settings.add_command(label="重置设置", command=self.reset_config)
         menu.add_cascade(label="设置", menu=menu_settings)
