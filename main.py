@@ -47,7 +47,7 @@ class MyApp(tk.Tk):
         self.save_button.pack(side="left")
 
     def create_menubar(self):
-        menu = tk.Menu(self)
+        menu = tk.Menu(self, tearoff=False)
 
         menu_editor = tk.Menu(self)
         menu_editor.add_command(label="保存", command=self.save_img)
