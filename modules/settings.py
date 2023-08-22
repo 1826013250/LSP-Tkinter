@@ -142,11 +142,15 @@ class SettingsWindow(tk.Toplevel):
         preload_entry.after(1, preload_validate)
         preload_entry.pack(side="right")
 
+        def set_dictionary():
+            path = askdirectory()
+            if path:
+                self.settings.save_path.set()
         path_frame = tk.Frame(self)
         path_frame.pack(fill="x")
         path_label = tk.Label(path_frame, text="图片保存路径")
         path_label.pack(side="left")
-        path_btn = tk.Button(path_frame, text="选择...", command=lambda: self.settings.save_path.set(askdirectory()))
+        path_btn = tk.Button(path_frame, text="选择...", command=set_dictionary)
         path_btn.pack(side="right")
         path_entry = tk.Entry(path_frame, textvariable=self.settings.save_path, width=10)
         path_entry.pack(side="right")
