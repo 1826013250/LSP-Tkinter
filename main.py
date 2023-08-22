@@ -145,6 +145,7 @@ API分类R18:
                                                                                pic_info_tp.winfo_height(),
                                                                                self.winfo_x() + 20,
                                                                                self.winfo_y() + 20)))
+            pic_info_tp.grab_set()
 
     def pic_resize(self):
         if self.img_status:

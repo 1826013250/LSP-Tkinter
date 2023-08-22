@@ -12,7 +12,7 @@ class Settings:
             self,
             master,
             r18=0,
-            preload=0,
+            preload=5,
             exclude_ai=False,
             uid=None,
             tags=None,
@@ -94,6 +94,10 @@ class SettingsWindow(tk.Toplevel):
                                                                        self.winfo_height(),
                                                                        master.winfo_x()+20,
                                                                        master.winfo_y()+20)))
+        self.wait_window()
+
+    def create_folders(self):
+        os.makedirs(self.settings.save_path, exist_ok=True)
 
     def create_widgets(self):
         r18_frame = tk.Frame(self)
