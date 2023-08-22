@@ -94,7 +94,8 @@ class SettingsWindow(tk.Toplevel):
                                                                        self.winfo_height(),
                                                                        master.winfo_x()+20,
                                                                        master.winfo_y()+20)))
-        self.deiconify()
+        self.focus_set()
+        self.wm_attributes("-topmost", 1)
 
     def create_folders(self):
         os.makedirs(self.settings.save_path, exist_ok=True)
@@ -153,11 +154,9 @@ class SettingsWindow(tk.Toplevel):
         def add_tag_list(text="", first=tk.END):
             ToplevelInput(self, "设置标签", "请输入要检索的标签，用\"|\"来添加多个可选项", text, lambda tp: (
                 tags_list.insert(tp.kwargs["first"], tp.entry.get()),
-                tp.destroy()
             ) if first == tk.END else (
                 tags_list.delete(tp.kwargs["first"]),
                 tags_list.insert(tp.kwargs["first"], tp.entry.get()),
-                tp.destroy()
             ), first=first)
 
         def tag_del_selected():
@@ -214,11 +213,9 @@ class SettingsWindow(tk.Toplevel):
         def add_uid_list(text="", first=tk.END):
             ToplevelInput(self, "设置作者uid", "请输入作者uid", text, lambda tp: (
                 uid_list.insert(tp.kwargs["first"], tp.entry.get()),
-                tp.destroy()
             ) if first == tk.END and tp.entry.get().isdigit() else (
                 uid_list.delete(tp.kwargs["first"]),
                 uid_list.insert(tp.kwargs["first"], tp.entry.get()),
-                tp.destroy()
             ) if tp.entry.get().isdigit() else (
                 showwarning("Warning", "作者uid中只能存在数字！")
             ), first=first)
@@ -272,32 +269,6 @@ class SettingsWindow(tk.Toplevel):
         uid_scroll.config(command=uid_list.yview)
         uid_list.pack(side="right")
 
-        def set_proxy(text=""):
-            tp = tk.Toplevel(self)
-            tp.title("设置Pixiv反代理服务网址")
-            tp.label = tk.Label(tp, text="请输入反代理网址(只保留主域名)")
-            tp.label.pack()
-            tp.entry = tk.Entry(tp)
-            tp.entry.insert(tk.END, text)
-            tp.entry.pack(fill="x")
-            tp.btn_frame = tk.Frame(tp)
-            tp.btn_frame.pack()
-            tp.btn_cancel = tk.Button(tp.btn_frame, text="取消", command=tp.destroy)
-            tp.btn_confirm = tk.Button(tp.btn_frame, text="确定", command=lambda: (
-                self.settings.custom_proxy.set(tp.entry.get()),
-                tp.destroy()
-            ))
-            tp.btn_cancel.pack(side="left")
-            tp.btn_confirm.pack(side="right")
-            tp.bind("<Return>", lambda *args: (
-                self.settings.custom_proxy.set(tp.entry.get()),
-                tp.destroy()
-            ))
-            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
-                                                                    tp.winfo_height(),
-                                                                    self.winfo_x() + 20,
-                                                                    self.winfo_y() + 20)))
-
         proxy_frame = tk.Label(self)
         proxy_frame.pack(fill="x")
         proxy_label = tk.Label(proxy_frame, text="Pixiv反代理")
@@ -309,10 +280,7 @@ class SettingsWindow(tk.Toplevel):
                                           "设置反代理",
                                           "请输入反代理网址(只保留主域名)",
                                           self.settings.custom_proxy.get(),
-                                          lambda tp: (
-                                              self.settings.custom_proxy.set(tp.entry.get()),
-                                              tp.destroy()
-                                          )
+                                          lambda tp: self.settings.custom_proxy.set(tp.entry.get())
                                       ))
         proxy_custom_btn.pack(side="right")
         proxy_custom = tk.Radiobutton(proxy_frame,
@@ -361,7 +329,13 @@ class ToplevelInput(tk.Toplevel):
                                                                     self.winfo_height(),
                                                                     self.master.winfo_x() + 20,
                                                                     self.master.winfo_y() + 20)))
-        self.bind("<FocusOut>", lambda *args: self.destroy())
+        self.master.wm_attributes("-topmost", 0)
+        self.wm_attributes("-topmost", 1)
+        self.protocol("WM_DELETE_WINDOW", self.close_window)
+
+    def close_window(self):
+        self.master.wm_attributes("-topmost", 1)
+        self.destroy()
 
     def create_widgets(self):
         label = tk.Label(self, text=self.label_text)
@@ -371,11 +345,10 @@ class ToplevelInput(tk.Toplevel):
         self.entry.pack(fill="x")
         btn_frame = tk.Frame(self)
         btn_frame.pack()
-        btn_cancel = tk.Button(btn_frame, text="取消", command=self.destroy)
+        btn_cancel = tk.Button(btn_frame, text="取消", command=self.close_window)
         btn_cancel.pack(side="left")
-        btn_confirm = tk.Button(btn_frame, text="确定", command=lambda: self.btn_command(self))
+        btn_confirm = tk.Button(btn_frame, text="确定", command=lambda: (self.btn_command(self), self.close_window()))
         btn_confirm.pack(side="right")
         self.bind("<Return>", lambda *args: self.btn_command(self))
         self.deiconify()
         self.entry.focus_set()
-

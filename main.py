@@ -51,7 +51,7 @@ class MyApp(tk.Tk):
         menu.add_cascade(label="编辑", menu=menu_editor)
 
         menu_settings = tk.Menu(self)
-        menu_settings.add_command(label="打开设置", command=lambda: self.wait_window(SettingsWindow(self)))
+        menu_settings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
         menu_settings.add_command(label="重置设置", command=...)
         menu.add_cascade(label="设置", menu=menu_settings)
 
