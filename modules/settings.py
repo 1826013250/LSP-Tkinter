@@ -145,7 +145,7 @@ class SettingsWindow(tk.Toplevel):
         def set_dictionary():
             path = askdirectory()
             if path:
-                self.settings.save_path.set()
+                self.settings.save_path.set(path)
         path_frame = tk.Frame(self)
         path_frame.pack(fill="x")
         path_label = tk.Label(path_frame, text="图片保存路径")
