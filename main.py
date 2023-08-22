@@ -51,7 +51,7 @@ class MyApp(tk.Tk):
         menu.add_cascade(label="编辑", menu=menu_editor)
 
         menu_settings = tk.Menu(self)
-        menu_settings.add_command(label="打开设置", command=lambda: SettingsWindow(self))
+        menu_settings.add_command(label="打开设置", command=lambda: self.wait_window(SettingsWindow(self)))
         menu_settings.add_command(label="重置设置", command=...)
         menu.add_cascade(label="设置", menu=menu_settings)
 
@@ -145,7 +145,7 @@ API分类R18:
                                                                                pic_info_tp.winfo_height(),
                                                                                self.winfo_x() + 20,
                                                                                self.winfo_y() + 20)))
-            pic_info_tp.grab_set()
+            pic_info_tp.deiconify()
 
     def pic_resize(self):
         if self.img_status:

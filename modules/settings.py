@@ -94,7 +94,7 @@ class SettingsWindow(tk.Toplevel):
                                                                        self.winfo_height(),
                                                                        master.winfo_x()+20,
                                                                        master.winfo_y()+20)))
-        self.wait_window()
+        self.deiconify()
 
     def create_folders(self):
         os.makedirs(self.settings.save_path, exist_ok=True)
@@ -151,44 +151,35 @@ class SettingsWindow(tk.Toplevel):
         path_entry.pack(side="right")
 
         def add_tag_list(text="", first=tk.END):
-            tp = tk.Toplevel(self)
-            tp.title("设置标签")
-            tp.label = tk.Label(tp, text="请输入要检索的标签，用\"|\"标记其他可选项")
-            tp.label.pack()
-            tp.entry = tk.Entry(tp)
-            tp.entry.insert(tk.END, text)
-            tp.entry.pack(fill="x")
-            tp.btn_frame = tk.Frame(tp)
-            tp.btn_frame.pack()
-            tp.btn_cancel = tk.Button(tp.btn_frame, text="取消", command=tp.destroy)
-            tp.btn_confirm = tk.Button(tp.btn_frame, text="确定", command=lambda: (
-                tags_list.insert(first, tp.entry.get()),
+            ToplevelInput(self, "设置标签", "请输入要检索的标签，用\"|\"来添加多个可选项", text, lambda tp: (
+                tags_list.insert(tp.kwargs["first"], tp.entry.get()),
                 tp.destroy()
             ) if first == tk.END else (
-                tags_list.delete(first),
-                tags_list.insert(first, tp.entry.get()),
+                tags_list.delete(tp.kwargs["first"]),
+                tags_list.insert(tp.kwargs["first"], tp.entry.get()),
                 tp.destroy()
-            ))
-            tp.btn_cancel.pack(side="left")
-            tp.btn_confirm.pack(side="right")
-            tp.bind("<Return>", lambda *args: (
-                tags_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ) if first == tk.END else (
-                tags_list.delete(first),
-                tags_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ))
-            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
-                                                                    tp.winfo_height(),
-                                                                    self.winfo_x()+20,
-                                                                    self.winfo_y()+20)))
+            ), first=first)
 
         def tag_del_selected():
-            try:
+            now = tags_list.curselection()
+            if now:
+                now = now[0]
+                now -= 1
                 tags_list.delete(tags_list.curselection())
-            except tk.TclError:
-                pass
+                if now >= 0:
+                    tags_list.selection_set(now)
+                else:
+                    try:
+                        if tags_list.get((0, )):
+                            tags_list.selection_set(0)
+                    except tk.TclError:
+                        pass
+            else:
+                try:
+                    if tags_list.get((0, )):
+                        tags_list.delete(0)
+                except tk.TclError:
+                    pass
 
         def tag_modify_selected():
             try:
@@ -218,45 +209,19 @@ class SettingsWindow(tk.Toplevel):
         tags_scroll.config(command=tags_list.yview)
         tags_list.pack(side="right")
 
-        def add_uid_list(text="", first=tk.END):
-            tp = tk.Toplevel(self)
-            tp.title("设置作者uid")
-            tp.label = tk.Label(tp, text="请输入作者的uid")
-            tp.label.pack()
-            tp.entry = tk.Entry(tp)
-            tp.entry.insert(tk.END, text)
-            tp.entry.pack(fill="x")
-            tp.btn_frame = tk.Frame(tp)
-            tp.btn_frame.pack()
-            tp.btn_cancel = tk.Button(tp.btn_frame, text="取消", command=tp.destroy)
-            tp.btn_confirm = tk.Button(tp.btn_frame, text="确定", command=lambda: (
-                uid_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ) if first == tk.END and tp.entry.get().isdigit() else (
-                uid_list.delete(first),
-                uid_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ) if tp.entry.get().isdigit() else (
-                showwarning("Warning", "作者uid中只能存在数字！")
-            ))
-            tp.btn_cancel.pack(side="left")
-            tp.btn_confirm.pack(side="right")
-            tp.bind("<Return>", lambda *args: (
-                uid_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ) if first == tk.END and tp.entry.get().isdigit() else (
-                uid_list.delete(first),
-                uid_list.insert(first, tp.entry.get()),
-                tp.destroy()
-            ) if tp.entry.get().isdigit() else (
-                showwarning("Warning", "作者uid中只能存在数字！")
-            ))
-            tp.after(20, lambda *args: tp.geometry("%dx%d+%d+%d" % (tp.winfo_width(),
-                                                                    tp.winfo_height(),
-                                                                    self.winfo_x() + 20,
-                                                                    self.winfo_y() + 20)))
-
         tk.Label(self).pack()
+
+        def add_uid_list(text="", first=tk.END):
+            ToplevelInput(self, "设置作者uid", "请输入作者uid", text, lambda tp: (
+                uid_list.insert(tp.kwargs["first"], tp.entry.get()),
+                tp.destroy()
+            ) if first == tk.END and tp.entry.get().isdigit() else (
+                uid_list.delete(tp.kwargs["first"]),
+                uid_list.insert(tp.kwargs["first"], tp.entry.get()),
+                tp.destroy()
+            ) if tp.entry.get().isdigit() else (
+                showwarning("Warning", "作者uid中只能存在数字！")
+            ), first=first)
 
         def uid_modify_selected():
             try:
@@ -265,10 +230,25 @@ class SettingsWindow(tk.Toplevel):
                 pass
 
         def uid_del_selected():
-            try:
+            now = uid_list.curselection()
+            if now:
+                now = now[0]
+                now -= 1
                 uid_list.delete(uid_list.curselection())
-            except tk.TclError:
-                pass
+                if now >= 0:
+                    uid_list.selection_set(now)
+                else:
+                    try:
+                        if uid_list.get((0,)):
+                            uid_list.selection_set(0)
+                    except tk.TclError:
+                        pass
+            else:
+                try:
+                    if uid_list.get((0,)):
+                        uid_list.delete(0)
+                except tk.TclError:
+                    pass
         uid_frame = tk.Frame(self)
         uid_frame.pack(fill="x")
         uid_label = tk.Label(uid_frame, text="作者uid筛选")
@@ -317,13 +297,23 @@ class SettingsWindow(tk.Toplevel):
                                                                     tp.winfo_height(),
                                                                     self.winfo_x() + 20,
                                                                     self.winfo_y() + 20)))
+
         proxy_frame = tk.Label(self)
         proxy_frame.pack(fill="x")
         proxy_label = tk.Label(proxy_frame, text="Pixiv反代理")
         proxy_label.pack(side="left")
         proxy_custom_btn = tk.Button(proxy_frame,
                                      text="自定",
-                                     command=lambda: set_proxy(self.settings.custom_proxy.get()))
+                                     command=lambda: ToplevelInput(
+                                         self,
+                                          "设置反代理",
+                                          "请输入反代理网址(只保留主域名)",
+                                          self.settings.custom_proxy.get(),
+                                          lambda tp: (
+                                              self.settings.custom_proxy.set(tp.entry.get()),
+                                              tp.destroy()
+                                          )
+                                      ))
         proxy_custom_btn.pack(side="right")
         proxy_custom = tk.Radiobutton(proxy_frame,
                                       value=2,
@@ -359,5 +349,33 @@ class SettingsWindow(tk.Toplevel):
 
 
 class ToplevelInput(tk.Toplevel):
-    def __init__(self, master):
+    def __init__(self, master, title, label_text, entry_text, btn_command, **kwargs):
         super().__init__(master)
+        self.wm_title(title)
+        self.label_text = label_text
+        self.entry_text = entry_text
+        self.btn_command = btn_command
+        self.kwargs = kwargs
+        self.create_widgets()
+        self.after(20, lambda *args: self.geometry("%dx%d+%d+%d" % (self.winfo_width(),
+                                                                    self.winfo_height(),
+                                                                    self.master.winfo_x() + 20,
+                                                                    self.master.winfo_y() + 20)))
+        self.bind("<FocusOut>", lambda *args: self.destroy())
+
+    def create_widgets(self):
+        label = tk.Label(self, text=self.label_text)
+        label.pack()
+        self.entry = tk.Entry(self)
+        self.entry.insert(tk.END, self.entry_text)
+        self.entry.pack(fill="x")
+        btn_frame = tk.Frame(self)
+        btn_frame.pack()
+        btn_cancel = tk.Button(btn_frame, text="取消", command=self.destroy)
+        btn_cancel.pack(side="left")
+        btn_confirm = tk.Button(btn_frame, text="确定", command=lambda: self.btn_command(self))
+        btn_confirm.pack(side="right")
+        self.bind("<Return>", lambda *args: self.btn_command(self))
+        self.deiconify()
+        self.entry.focus_set()
+
