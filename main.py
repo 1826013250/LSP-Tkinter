@@ -1,4 +1,3 @@
-import tkinter as tk
 import os
 from tkinter.messagebox import showinfo
 from PIL import Image, ImageTk
@@ -8,6 +7,7 @@ from threading import Thread, Lock
 from modules.get_image import get_meta
 from modules.settings import load_settings, SettingsWindow
 from modules.stop_thread import stop_thread
+from modules.popup_message import *
 
 
 class MyApp(tk.Tk):
@@ -32,6 +32,9 @@ class MyApp(tk.Tk):
         self.image_label = tk.Label(self)
         self.image_label.pack()
         self.image_label.bind("<Button- >", lambda *args: self.pic_info())
+        initialize_popup(self.image_label)
+        self.image_label.bind("<Enter>", lambda *args: show_popup(self.image_label, "点击图片或按下空格来显示图片信息"))
+        self.image_label.bind("<Leave>", lambda *args: hide_popup(self.image_label))
         self.bind("<Key- >", lambda *args: self.pic_info())
         self.button_frame = tk.Frame(self)
         self.button_frame.pack()
@@ -148,10 +151,7 @@ API分类R18:
             pic_info_tp.bind("<Key- >", lambda *args: pic_info_tp.destroy())
             pic_info_tp.bind("<FocusOut>", lambda *args: pic_info_tp.destroy())
             btn.pack()
-            pic_info_tp.after(5, lambda: pic_info_tp.geometry("%dx%d+%d+%d" % (pic_info_tp.winfo_width(),
-                                                                               pic_info_tp.winfo_height(),
-                                                                               self.winfo_x() + 20,
-                                                                               self.winfo_y() + 20)))
+            pic_info_tp.wm_geometry("+%d+%d" % (self.winfo_x() + 20, self.winfo_y() + 20))
             pic_info_tp.focus_set()
 
     def pic_resize(self):

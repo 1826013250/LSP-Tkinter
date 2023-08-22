@@ -5,6 +5,7 @@ from tkinter import BooleanVar, StringVar, IntVar, Variable
 from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showwarning
 from modules.stop_thread import stop_thread
+from modules.popup_message import *
 
 
 class Settings:
@@ -90,12 +91,10 @@ class SettingsWindow(tk.Toplevel):
         self.create_widgets()
         self.wm_title("设置")
         self.wm_resizable(False, False)
-        self.after(20, lambda *args: self.wm_geometry("%dx%d+%d+%d" % (self.winfo_width(),
-                                                                       self.winfo_height(),
-                                                                       master.winfo_x()+20,
-                                                                       master.winfo_y()+20)))
+        self.wm_geometry("+%d+%d" % (master.winfo_x()+20, master.winfo_y()+20))
         self.focus_set()
         self.wm_attributes("-topmost", 1)
+        self.protocol("WM_DESTROY_WINDOW", self.cancel_settings)
 
     def create_folders(self):
         os.makedirs(self.settings.save_path, exist_ok=True)
@@ -211,6 +210,19 @@ class SettingsWindow(tk.Toplevel):
                                listvariable=self.settings.tags)
         tags_scroll.config(command=tags_list.yview)
         tags_list.pack(side="right")
+        initialize_popup(tags_list)
+
+        def tag_show_popup():
+            self.wm_attributes("-topmost", 0)
+            show_popup(tags_list, "在这里添加的项目是全部匹配\n"
+                                  "如果需要选择匹配(至少包含一个)\n"
+                                  "请在添加界面使用\"|\"", 60)
+
+        def tag_hide_popup():
+            hide_popup(tags_list)
+            self.wm_attributes("-topmost", 1)
+        tags_list.bind("<Enter>", lambda *args: tag_show_popup())
+        tags_list.bind("<Leave>", lambda *args: tag_hide_popup())
 
         tk.Label(self).pack()
 
@@ -307,10 +319,14 @@ class SettingsWindow(tk.Toplevel):
 
         final_button_frame = tk.Frame(self)
         final_button_frame.pack()
-        final_cancel_btn = tk.Button(final_button_frame, text="取消", command=self.destroy)
+        final_cancel_btn = tk.Button(final_button_frame, text="取消", command=self.cancel_settings)
         final_cancel_btn.pack(side="left")
         final_save_btn = tk.Button(final_button_frame, text="确定", command=self.save_settings)
         final_save_btn.pack(side="right")
+
+    def cancel_settings(self):
+        self.master.settings = load_settings(self.master)
+        self.destroy()
 
     def save_settings(self):
         save_settings(self.settings)
@@ -329,10 +345,7 @@ class ToplevelInput(tk.Toplevel):
         self.btn_command = btn_command
         self.kwargs = kwargs
         self.create_widgets()
-        self.after(20, lambda *args: self.geometry("%dx%d+%d+%d" % (self.winfo_width(),
-                                                                    self.winfo_height(),
-                                                                    self.master.winfo_x() + 20,
-                                                                    self.master.winfo_y() + 20)))
+        self.wm_geometry("+%d+%d" % (self.master.winfo_x() + 20, self.master.winfo_y() + 20))
         self.master.wm_attributes("-topmost", 0)
         self.wm_attributes("-topmost", 1)
         self.protocol("WM_DELETE_WINDOW", self.close_window)
