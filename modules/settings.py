@@ -14,6 +14,7 @@ class Settings:
             master,
             r18=0,
             preload=5,
+            save_back=5,
             exclude_ai=False,
             uid=None,
             tags=None,
@@ -23,6 +24,7 @@ class Settings:
     ):
         self.r18 = IntVar(master, r18)
         self.preload = IntVar(master, preload)
+        self.save_back = IntVar(master, save_back)
         self.exclude_ai = BooleanVar(master, exclude_ai)
         self.uid = Variable(value=[]) if not uid else Variable(value=uid)
         self.tags = Variable(value=[]) if not tags else Variable(value=tags)
@@ -36,6 +38,7 @@ def dict2class(adict: dict, master):
         r18=adict['r18'],
         master=master,
         preload=adict['preload'],
+        save_back=adict['save_back'],
         exclude_ai=adict['exclude_ai'],
         uid=adict['uid'],
         tags=adict['tags'],
@@ -49,6 +52,7 @@ def class2dict(aclass: Settings):
     return {
         "r18": aclass.r18.get(),
         "preload": aclass.preload.get(),
+        "save_back": aclass.save_back.get(),
         "exclude_ai": aclass.exclude_ai.get(),
         "uid": aclass.uid.get(),
         "tags": aclass.tags.get(),
@@ -93,7 +97,6 @@ class SettingsWindow(tk.Toplevel):
         self.wm_resizable(False, False)
         self.wm_geometry("+%d+%d" % (master.winfo_x()+20, master.winfo_y()+20))
         self.focus_set()
-        self.wm_attributes("-topmost", 1)
         self.protocol("WM_DELETE_WINDOW", self.cancel_settings)
 
     def create_widgets(self):
@@ -138,12 +141,33 @@ class SettingsWindow(tk.Toplevel):
         preload_entry.after(1, preload_validate)
         preload_entry.pack(side="right")
 
+        def save_back_validate():
+            if save_back_temp_var.get().isdigit():
+                if int(save_back_temp_var.get()) > 20:
+                    self.settings.save_back.set(20)
+                    save_back_temp_var.set("20")
+                else:
+                    self.settings.save_back.set(int(save_back_temp_var.get()))
+                    save_back_temp_var.set(self.settings.save_back.get())
+            elif not save_back_temp_var.get():
+                self.settings.save_back.set(0)
+                save_back_temp_var.set("0")
+            else:
+                save_back_temp_var.set(self.settings.save_back.get())
+            save_back_entry.after(1, save_back_validate)
+        save_back_temp_var = tk.StringVar(self, self.settings.save_back.get())
+        save_back_frame = tk.Frame(self)
+        save_back_frame.pack(fill=tk.X),
+        save_back_label = tk.Label(save_back_frame, text="返回图片保存数量")
+        save_back_label.pack(side=tk.LEFT)
+        save_back_entry = tk.Entry(save_back_frame, textvariable=save_back_temp_var, width=2)
+        save_back_entry.after(1, save_back_validate)
+        save_back_entry.pack(side=tk.RIGHT)
+
         def set_dictionary():
-            self.wm_attributes("-topmost", 0)
             path = askdirectory()
             if path:
                 self.settings.save_path.set(path)
-            self.wm_attributes("-topmost", 1)
         path_frame = tk.Frame(self)
         path_frame.pack(fill="x")
         path_label = tk.Label(path_frame, text="图片保存路径")
@@ -210,18 +234,10 @@ class SettingsWindow(tk.Toplevel):
         tags_scroll.config(command=tags_list.yview)
         tags_list.pack(side="right")
         initialize_popup(tags_list)
-
-        def tag_show_popup():
-            self.wm_attributes("-topmost", 0)
-            show_popup(tags_list, "在这里添加的项目是全部匹配\n"
-                                  "如果需要选择匹配(至少包含一个)\n"
-                                  "请在添加界面使用\"|\"", 60)
-
-        def tag_hide_popup():
-            hide_popup(tags_list)
-            self.wm_attributes("-topmost", 1)
-        tags_list.bind("<Enter>", lambda *args: tag_show_popup())
-        tags_list.bind("<Leave>", lambda *args: tag_hide_popup())
+        tags_list.bind("<Enter>", lambda *args: show_popup(tags_list, "在这里添加的项目是全部匹配\n"
+                                                                      "如果需要选择匹配(至少包含一个)\n"
+                                                                      "请在添加界面使用\"|\"", 60))
+        tags_list.bind("<Leave>", lambda *args:  hide_popup(tags_list))
 
         tk.Label(self).pack()
 
@@ -345,12 +361,9 @@ class ToplevelInput(tk.Toplevel):
         self.kwargs = kwargs
         self.create_widgets()
         self.wm_geometry("+%d+%d" % (self.master.winfo_x() + 20, self.master.winfo_y() + 20))
-        self.master.wm_attributes("-topmost", 0)
-        self.wm_attributes("-topmost", 1)
         self.protocol("WM_DELETE_WINDOW", self.close_window)
 
     def close_window(self):
-        self.master.wm_attributes("-topmost", 1)
         self.destroy()
 
     def create_widgets(self):
